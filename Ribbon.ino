@@ -1,4 +1,4 @@
-nt minVal = 20;
+int minVal = 20;
 int maxVal = 1024 - minVal;
 int midVal = 512;
 int prevVal = 0;
@@ -29,6 +29,8 @@ void loop() {
   {
     if(!ispressed)          // if this is their first touch, set flag, starting value & calculate scaling
     {
+      curVal = analogRead (A0);                         
+      curVal = analogRead (A0);
       ispressed = true;
       baseVal = curVal;                                                   // set starting point
       prevVal = curVal;                                                   // save prev loop value
