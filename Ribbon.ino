@@ -66,10 +66,10 @@ void loop()
   else // the ribbon is not pressed this loop
   {
     // feature: hold last value and fade
-    if (timer > 100 || isHeld)
+    if (timer > 100)
     {
       // debugging
-      ispressed = false;
+      // ispressed = false;
 
       if (!isHeld)
       {
@@ -86,7 +86,7 @@ void loop()
       }
 
       holdTimer++;
-      
+
       if (vol > 0) // && holdTimer % 200 == 0)
       {
         MIDI.sendControlChange(7, vol--, 1);
@@ -95,18 +95,18 @@ void loop()
       else
       {
         clearPitchBend();
-      }      
-      delay(20);
-    }
-    else
-    {
-      if (ispressed) // if it was pressed last time through, reset pitch bend
-      {
-        clearPitchBend();
       }
+      delay(20);
+      return;
     }
-    ispressed = false; // always reset flag
-  }  
+
+    if (ispressed) // if it was pressed last time through, reset pitch bend
+    {
+      clearPitchBend();
+    }
+  }
+
+  ispressed = false; // always reset flag
   delay(20);
 }
 
