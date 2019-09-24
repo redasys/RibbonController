@@ -39,7 +39,7 @@ void loop()
 
   if (curVal > minVal) // somebody is touching the ribbon
   {
-    if (!ispressed) // if this is their first touch, set flag, starting value & calculate scaling
+    if (!ispressed && !isHeld) // if this is their first touch, set flag, starting value & calculate scaling
     {
       ispressed = true;
       baseVal = curVal;                                                // set starting point
@@ -106,8 +106,7 @@ void loop()
       }
     }
     ispressed = false; // always reset flag
-  }
-  timer = 0;
+  }  
   delay(20);
 }
 
@@ -122,6 +121,7 @@ void clearPitchBend()
   Serial.write(0xE0); // 1110 0000
   Serial.write(0x00); // LSB clear
   Serial.write(0x40); // MSB = 1/2 way of 7 bits, not really that'd be 0x20 which didn't work for a 20k pot
+  timer = 0;
   holdTimer = 0;
   holdPWHex = 0;
   isHeld = false;
