@@ -59,7 +59,7 @@ void loop() {
     }
     ispressed = false;      // always reset flag
   }
-  delay(100); 
+  delay(20); 
 }
 
 void clearPitchBend()
