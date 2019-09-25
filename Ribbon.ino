@@ -19,7 +19,7 @@ float tFloat1, tfloat2;
 float midPoint = maxBend;
 bool ispressed = false;
 
-// feature
+// feature - latch after 100 loops of being pressed
 int voiceAReleaseCC = 60; // DDRM  CC for VCA Env Release Voice A
 int voiceBReleaseCC = 87; // Same as above for Voice B
 bool holding = false;
@@ -46,7 +46,6 @@ void loop()
   {
     if (!ispressed) // if this is their first touch, set flag, starting value & calculate scaling
     {
-      ispressed = true;
       baseVal = curVal;                                                // set starting point
       prevVal = curVal;                                                // save prev loop value
       maxTravel = curVal > midVal ? curVal - minVal : maxVal - curVal; // if we are above midpoint, use max travel as down, else max travel is up (0 to 1023)
@@ -57,6 +56,7 @@ void loop()
         shouldRelease = true;
       }
       clearPitchBend();
+      ispressed = true;
     }
     else // this is continued touch
     {
@@ -77,7 +77,7 @@ void loop()
     {
       if (!holding)
       {
-        //preserve the bend
+        //preserve the bend position
         holdPWValue = newPWHex;
         holding = true;
         honsc(true);
@@ -98,8 +98,7 @@ void loop()
     if (ispressed) // if it was pressed last time through, reset pitch bend
     {
       clearPitchBend();
-    }
-    ispressed = false; // always reset flag
+    }    
   }
   delay(20);
 }
@@ -121,6 +120,7 @@ void clearPitchBend()
   Serial.write(0x00); // LSB clear
   Serial.write(0x40); // MSB = 1/2 way of 7 bits
   timer = 0;
+  ispressed = false; // always reset flag meh can be moved here
 }
 
 // this uses continuous status (no leading byte required)
