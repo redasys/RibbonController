@@ -39,7 +39,7 @@ void loop()
 
   if (curVal > minVal) // somebody is touching the ribbon
   {
-    if (!ispressed && !isHeld) // if this is their first touch, set flag, starting value & calculate scaling
+    if (!ispressed) // if this is their first touch, set flag, starting value & calculate scaling
     {
       ispressed = true;
       baseVal = curVal;                                                // set starting point
@@ -73,6 +73,7 @@ void loop()
 
       if (!isHeld)
       {
+        timer = 0;
         holdPWHex = newPWHex;
         isHeld = true;
       }
@@ -99,7 +100,8 @@ void loop()
       delay(20);
       return;
     }
-
+    // needs to be cleared each loop when not held
+    timer = 0;
     if (ispressed) // if it was pressed last time through, reset pitch bend
     {
       clearPitchBend();
