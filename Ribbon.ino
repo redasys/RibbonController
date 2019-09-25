@@ -1,4 +1,4 @@
-#include <MIDI.h>
+#include <MIDI.h>;
 MIDI_CREATE_DEFAULT_INSTANCE();
 
 int minVal = 10;
@@ -18,23 +18,28 @@ float tempFloat = 0;
 float tFloat1, tfloat2;
 float midPoint = maxBend;
 bool ispressed = false;
-// features:
-int timer = 0, holdCtr = 9, holdTimer = 0, vol = 100;
-unsigned int holdPWHex = 0;
-bool isHeld = false;
+
+// feature
+int voiceAReleaseCC = 60; // DDRM  CC for VCA Env Release Voice A
+int voiceBReleaseCC = 87; // Same as above for Voice B
+bool holding = false;
+int shouldRelease = false;
+int timer, holdTicks;
+unsigned int holdPWValue;
 
 void setup()
 {
+  timer = 0;
+  holdTicks = 0;
+  holdPWValue = 0;
   // Set MIDI baud rate:
   Serial.begin(31250);
   clearPitchBend();
-  // feature: use MIDI lib
   MIDI.begin(1);
 }
 
 void loop()
 {
-  timer++;
   curVal = analogRead(A0); // 0 to 1023
 
   if (curVal > minVal) // somebody is touching the ribbon
@@ -48,6 +53,9 @@ void loop()
       // we need to map our max travel to be 0x2000
       tFloat1 = maxTravel;
       scaleFactor = maxBend / tFloat1; // scale factor will convert our max possible movement to 0x2000
+      if(holding){
+        shouldRelease = true;
+      }
       clearPitchBend();
     }
     else // this is continued touch
@@ -65,69 +73,54 @@ void loop()
   }
   else // the ribbon is not pressed this loop
   {
-    // feature: hold last value and fade
-    if (timer > 100)
+    if (holding || timer > 100)
     {
-      // debugging
-      // ispressed = false;
-
-      if (!isHeld)
+      if (!holding)
       {
-        timer = 0;
-        holdPWHex = newPWHex;
-        isHeld = true;
+        //preserve the bend
+        holdPWValue = newPWHex;
+        holding = true;
+        honsc(true);
       }
+      //reset first byte
+      Serial.write(0xE0);
+      sendPitchBend(holdPWValue);
 
-      Serial.write(0xE0); // 1110 0000
-      sendPitchBend(holdPWHex);
-
-      if (holdTimer == 0)
+      if (holdTicks > 2000)
       {
-        MIDI.sendControlChange(64, 127, 1);
-      }
-
-      holdTimer++;
-
-      if (vol > 0) // && holdTimer % 200 == 0)
-      {
-        MIDI.sendControlChange(7, vol--, 1);
-      }
-      //if (holdTimer > 20000)
-      else
-      {
+        shouldRelease = true;
         clearPitchBend();
       }
-      delay(20);
-      return;
+      // don't reset until I say
+      ispressed = false;
     }
-    // needs to be cleared each loop when not held
-    timer = 0;
+
     if (ispressed) // if it was pressed last time through, reset pitch bend
     {
       clearPitchBend();
     }
+    ispressed = false; // always reset flag
   }
-
-  ispressed = false; // always reset flag
   delay(20);
 }
 
 void clearPitchBend()
 {
-  if (isHeld)
+  if (shouldRelease)
   {
-    MIDI.sendControlChange(64, 0, 1);
-    MIDI.sendControlChange(7, 100, 1);
+    holdTicks = 0;
+    holdPWValue = 0;
+    holding = false;
+    shouldRelease = false;
+
+    honsc(false);
   }
+
   // 2000h is zero point = 0010 0000 0000 0000 but sent as a 14 bit value split into 2 x 7 =  --> 1000000 0000000 (0x20h, 0x00h)
   Serial.write(0xE0); // 1110 0000
   Serial.write(0x00); // LSB clear
-  Serial.write(0x40); // MSB = 1/2 way of 7 bits, not really that'd be 0x20 which didn't work for a 20k pot
+  Serial.write(0x40); // MSB = 1/2 way of 7 bits
   timer = 0;
-  holdTimer = 0;
-  holdPWHex = 0;
-  isHeld = false;
-  vol = 100;
 }
 
 // this uses continuous status (no leading byte required)
@@ -137,4 +130,16 @@ void sendPitchBend(unsigned int pwAmount)
   unsigned char high = (pwAmount >> 7) & 0x7F; // High 7 bits
   Serial.write(low);                           // LSB
   Serial.write(high);                          // MSB
+  timer++;
+
+  if (holding)
+  {
+    holdTicks++;
+  }
+}
+void honsc(bool on)
+{
+  int val = on ? 127 : 40;
+  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
+  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
 }
