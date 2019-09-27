@@ -1,7 +1,7 @@
 #include <MIDI.h>;
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-int minVal = 10;
+int minVal = 1;
 int maxVal = 1024 - minVal;
 int midVal = 512;
 int prevVal = 0;
@@ -114,7 +114,7 @@ void clearPitchBend()
   {
     holdTicks = 0;
     holdPWValue = 0;
-    holding = false;    
+    holding = false;
   }
 
   // 2000h is zero point = 0010 0000 0000 0000 but sent as a 14 bit value split into 2 x 7 =  --> 1000000 0000000 (0x20h, 0x00h)
@@ -124,10 +124,11 @@ void clearPitchBend()
   timer = 0;
   ispressed = false; // always reset flag meh can be moved here
 
-//splitting this up avoids hearing the ribbon snap back.
-  if(shouldRelease){
-    shouldRelease = false;    
-    //turn it back up 
+  //splitting this up avoids hearing the ribbon snap back.
+  if (shouldRelease)
+  {
+    shouldRelease = false;
+    //turn it back up
     resetVolume();
   }
 }
@@ -164,10 +165,15 @@ void fadeOut()
 
 void resetVolume()
 {
-  vol = 110;
+
   MIDI.sendControlChange(voiceAReleaseCC, 0, 1);
   MIDI.sendControlChange(voiceBReleaseCC, 0, 1); //we dont want the ribbon snap back ringing due to sustain is the pedal is pressed
-  MIDI.sendControlChange(64, 0, 1);
+  // only if we faded out
+  if (vol == 0)
+  {
+    MIDI.sendControlChange(64, 0, 1);
+  }
+  vol = 110;
   delay(100);
   MIDI.sendControlChange(7, vol, 1);
   honsc(false);
