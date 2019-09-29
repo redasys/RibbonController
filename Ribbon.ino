@@ -26,6 +26,7 @@ bool holding = false;
 int shouldRelease = false;
 int timer, holdTicks;
 unsigned int holdPWValue;
+
 // I'd call it my death but I'll only fade alway
 int vol = 110;
 
@@ -54,8 +55,8 @@ void loop()
       // we need to map our max travel to be 0x2000
       tFloat1 = maxTravel;
       scaleFactor = maxBend / tFloat1; // scale factor will convert our max possible movement to 0x2000
-      if (holding)
-      {
+
+      if(holding){
         shouldRelease = true;
       }
       clearPitchBend();
@@ -102,8 +103,30 @@ void loop()
 
     if (ispressed) // if it was pressed last time through, reset pitch bend
     {
-      clearPitchBend();
+      if (!holding)
+      {
+        //preserve the bend position
+        holdPWValue = newPWHex;
+        holding = true;
+        honsc(true);
+      }
+      //reset first byte
+      Serial.write(0xE0);
+      sendPitchBend(holdPWValue);
+
+      if (holdTicks > 2000)
+      {
+        shouldRelease = true;
+        clearPitchBend();
+      }
+      // don't reset until I say
+      ispressed = false;
     }
+
+    if (ispressed) // if it was pressed last time through, reset pitch bend
+    {
+      clearPitchBend();
+    }    
   }
   delay(20);
 }
@@ -115,6 +138,9 @@ void clearPitchBend()
     holdTicks = 0;
     holdPWValue = 0;
     holding = false;
+    shouldRelease = false;
+
+    honsc(false);
   }
 
   // 2000h is zero point = 0010 0000 0000 0000 but sent as a 14 bit value split into 2 x 7 =  --> 1000000 0000000 (0x20h, 0x00h)
@@ -177,4 +203,15 @@ void resetVolume()
   delay(100);
   MIDI.sendControlChange(7, vol, 1);
   honsc(false);
+
+  if (holding)
+  {
+    holdTicks++;
+  }
+}
+void honsc(bool on)
+{
+  int val = on ? 127 : 40;
+  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
+  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
 }
