@@ -1,6 +1,5 @@
 {
     "port": "COM8",
-    "board": "arduino:avr:nano",
-    "configuration": "cpu=atmega328old",
+    "board": "digistump:avr:digispark-pro",
     "sketch": "Ribbon.ino"
 }
