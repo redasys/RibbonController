@@ -1,7 +1,7 @@
 #include <MIDI.h>;
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-int minVal = 10;
+int minVal = 1;
 int maxVal = 1024 - minVal;
 int midVal = 512;
 int prevVal = 0;
@@ -26,6 +26,9 @@ bool holding = false;
 int shouldRelease = false;
 int timer, holdTicks;
 unsigned int holdPWValue;
+
+// I'd call it my death but I'll only fade alway
+int vol = 110;
 
 void setup()
 {
@@ -52,6 +55,7 @@ void loop()
       // we need to map our max travel to be 0x2000
       tFloat1 = maxTravel;
       scaleFactor = maxBend / tFloat1; // scale factor will convert our max possible movement to 0x2000
+
       if(holding){
         shouldRelease = true;
       }
@@ -74,6 +78,30 @@ void loop()
   else // the ribbon is not pressed this loop
   {
     if (holding || timer > 100)
+    {
+      if (!holding)
+      {
+        //preserve the bend position
+        holdPWValue = newPWHex;
+        holding = true;
+        honsc(true);
+      }
+      //reset first byte
+      Serial.write(0xE0);
+      sendPitchBend(holdPWValue);
+
+      fadeOut();
+
+      if (vol == 0 || holdTicks > 2000)
+      {
+        shouldRelease = true;
+        clearPitchBend();
+      }
+      // don't reset until I say
+      ispressed = false;
+    }
+
+    if (ispressed) // if it was pressed last time through, reset pitch bend
     {
       if (!holding)
       {
@@ -121,6 +149,14 @@ void clearPitchBend()
   Serial.write(0x40); // MSB = 1/2 way of 7 bits
   timer = 0;
   ispressed = false; // always reset flag meh can be moved here
+
+  //splitting this up avoids hearing the ribbon snap back.
+  if (shouldRelease)
+  {
+    shouldRelease = false;
+    //turn it back up
+    resetVolume();
+  }
 }
 
 // this uses continuous status (no leading byte required)
@@ -131,6 +167,42 @@ void sendPitchBend(unsigned int pwAmount)
   Serial.write(low);                           // LSB
   Serial.write(high);                          // MSB
   timer++;
+
+  if (holding)
+  {
+    holdTicks++;
+  }
+}
+
+void honsc(bool on)
+{
+  int val = on ? 127 : 40;
+  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
+  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
+}
+
+void fadeOut()
+{
+  if (holdTicks % 5 == 0 || vol < 5)
+  {
+    MIDI.sendControlChange(7, vol--, 1);
+  }
+}
+
+void resetVolume()
+{
+
+  MIDI.sendControlChange(voiceAReleaseCC, 0, 1);
+  MIDI.sendControlChange(voiceBReleaseCC, 0, 1); //we dont want the ribbon snap back ringing due to sustain is the pedal is pressed
+  // only if we faded out
+  if (vol == 0)
+  {
+    MIDI.sendControlChange(64, 0, 1);
+  }
+  vol = 110;
+  delay(100);
+  MIDI.sendControlChange(7, vol, 1);
+  honsc(false);
 
   if (holding)
   {
