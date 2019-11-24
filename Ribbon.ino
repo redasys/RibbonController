@@ -1,5 +1,4 @@
-#include <MIDI.h>;
-MIDI_CREATE_DEFAULT_INSTANCE();
+#include <MIDIUSB.h>;
 
 int minVal = 1;
 int maxVal = 1024 - minVal;
@@ -36,9 +35,9 @@ void setup()
   holdTicks = 0;
   holdPWValue = 0;
   // Set MIDI baud rate:
-  Serial.begin(31250);
+  Serial.begin(115200);
+  Serial1.begin(9600);
   clearPitchBend();
-  MIDI.begin(1);
 }
 
 void loop()
@@ -56,7 +55,8 @@ void loop()
       tFloat1 = maxTravel;
       scaleFactor = maxBend / tFloat1; // scale factor will convert our max possible movement to 0x2000
 
-      if(holding){
+      if (holding)
+      {
         shouldRelease = true;
       }
       clearPitchBend();
@@ -126,7 +126,7 @@ void loop()
     if (ispressed) // if it was pressed last time through, reset pitch bend
     {
       clearPitchBend();
-    }    
+    }
   }
   delay(20);
 }
@@ -144,9 +144,9 @@ void clearPitchBend()
   }
 
   // 2000h is zero point = 0010 0000 0000 0000 but sent as a 14 bit value split into 2 x 7 =  --> 1000000 0000000 (0x20h, 0x00h)
-  Serial.write(0xE0); // 1110 0000
-  Serial.write(0x00); // LSB clear
-  Serial.write(0x40); // MSB = 1/2 way of 7 bits
+  Serial.write((byte)0xE0); // 1110 0000
+  Serial.write((byte)0x00); // LSB clear
+  Serial.write((byte)0x40); // MSB = 1/2 way of 7 bits
   timer = 0;
   ispressed = false; // always reset flag meh can be moved here
 
@@ -174,34 +174,35 @@ void sendPitchBend(unsigned int pwAmount)
   }
 }
 
-void honsc(bool on)
+void sendControlChange(byte control, byte value, byte channel)
 {
-  int val = on ? 127 : 40;
-  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
+  Serial.println("sendControlChange");
+  channel = 0x0; // it's always channel 1 anyway...
+  midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};
+  MidiUSB.sendMIDI(event);
 }
 
 void fadeOut()
 {
   if (holdTicks % 5 == 0 || vol < 5)
   {
-    MIDI.sendControlChange(7, vol--, 1);
+    sendControlChange(7, vol--, 1);
   }
 }
 
 void resetVolume()
 {
 
-  MIDI.sendControlChange(voiceAReleaseCC, 0, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, 0, 1); //we dont want the ribbon snap back ringing due to sustain is the pedal is pressed
+  sendControlChange(voiceAReleaseCC, 0, 1);
+  sendControlChange(voiceBReleaseCC, 0, 1); //we dont want the ribbon snap back ringing due to sustain is the pedal is pressed
   // only if we faded out
   if (vol == 0)
   {
-    MIDI.sendControlChange(64, 0, 1);
+    sendControlChange(64, 0, 1);
   }
   vol = 110;
-  delay(100);
-  MIDI.sendControlChange(7, vol, 1);
+
+  sendControlChange(7, vol, 1);
   honsc(false);
 
   if (holding)
@@ -212,6 +213,6 @@ void resetVolume()
 void honsc(bool on)
 {
   int val = on ? 127 : 40;
-  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
+  sendControlChange(voiceAReleaseCC, val, 1);
+  sendControlChange(voiceBReleaseCC, val, 1);
 }

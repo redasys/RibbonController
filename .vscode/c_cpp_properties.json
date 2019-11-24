@@ -6,9 +6,13 @@
                 "C:\\Users\\User\\AppData\\Local\\Arduino15\\packages\\digistump\\tools\\**",
                 "C:\\Users\\User\\AppData\\Local\\Arduino15\\packages\\digistump\\hardware\\avr\\1.6.7\\**",
                 "C:\\Program Files (x86)\\Arduino\\tools\\**",
-                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
+                "C:\\Users\\User\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.1\\**",
+                "C:\\Users\\User\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**"
             ],
-            "forcedInclude": [],
+            "forcedInclude": [
+                "C:\\Users\\User\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.1\\cores\\arduino\\Arduino.h"
+            ],
             "intelliSenseMode": "msvc-x64"
         }
     ],
