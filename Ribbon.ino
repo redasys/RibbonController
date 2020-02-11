@@ -1,64 +1,4 @@
-#include <MIDI.h>;
-MIDI_CREATE_DEFAULT_INSTANCE();
-
-int minVal = 1;
-int maxVal = 1024 - minVal;
-int midVal = 512;
-int prevVal = 0;
-int baseVal = 0;
-int curVal = 0;
-int diffVal = 0;
-int msblsb = 0;
-int maxTravel = 0;
-float maxBend = 0x2000; // this is 1/2 of a max 14 bit number
-unsigned int newPWHex = 0;
-float newPWValue = 0;
-float scaleFactor = 0;
-float tempFloat = 0;
-float tFloat1, tfloat2;
-float midPoint = maxBend;
-bool ispressed = false;
-
-// feature - latch after 100 loops of being pressed
-int voiceAReleaseCC = 60; // DDRM  CC for VCA Env Release Voice A
-int voiceBReleaseCC = 87; // Same as above for Voice B
-bool holding = false;
-int shouldRelease = false;
-int timer, holdTicks;
-unsigned int holdPWValue;
-
-// I'd call it my death but I'll only fade alway
-int vol = 110;
-
-void setup()
-{
-  timer = 0;
-  holdTicks = 0;
-  holdPWValue = 0;
-  // Set MIDI baud rate:
-  Serial.begin(31250);
-  clearPitchBend();
-  MIDI.begin(1);
-}
-
-void loop()
-{
-  curVal = analogRead(A0); // 0 to 1023
-
-  if (curVal > minVal) // somebody is touching the ribbon
-  {
-    if (!ispressed) // if this is their first touch, set flag, starting value & calculate scaling
-    {
-      baseVal = curVal;                                                // set starting point
-      prevVal = curVal;                                                // save prev loop value
-      maxTravel = curVal > midVal ? curVal - minVal : maxVal - curVal; // if we are above midpoint, use max travel as down, else max travel is up (0 to 1023)
-      // we need to map our max travel to be 0x2000
-      tFloat1 = maxTravel;
-      scaleFactor = maxBend / tFloat1; // scale factor will convert our max possible movement to 0x2000
-
-      if(holding){
-        shouldRelease = true;
-      }#include <MIDIUSB.h>
+#include <MIDIUSB.h>
 #include <CreateTimer.h>
 
 int ribbon = A0;
@@ -197,8 +137,7 @@ void loop()
                 honsc(true);
                 sustainDuration.Start(30000UL);
             }
-            //reset first byte
-            // Serial.write(0xE0);
+            //reset first byte            
             sendPitchBend(holdPWValue);
             fadeOut();
 
@@ -233,13 +172,18 @@ void clearPitchBend()
         holdPWValue = 0;
         holding = false;
     }
-
+    // turn the volume down}
+    sendControlChange(0x7, 0x0, 0x0);
+    MidiUSB.flush();
+    
     sendPitchBend(512);
     MidiUSB.flush();
-    // unsigned char low = 0x20 & 0x7F;         // Low 7 bits
-    // unsigned char high = (0x20 >> 7) & 0x7F; // High 7 bits
-    // midiEventPacket_t pb = {0x0E, 0xE0 | 0, low, high};
-    // MidiUSB.sendMIDI(pb);
+
+    // turn the volume back up
+    delay(400);
+    sendControlChange(0x7, 0x0, 0x0);
+    MidiUSB.flush();
+
     timer = 0;
     ispressed = false; // always reset flag meh can be moved here
 
@@ -366,7 +310,7 @@ void resetVolume()
     vol = 127;
     MidiUSB.flush();
     // flashOff();
-    sendControlChange(0x7, vol, 1);
+    sendControlChange(0x7, vol, 0x0);
     honsc(false);
     MidiUSB.flush();
     chordMode(true);
@@ -458,160 +402,3 @@ boolean checkTimers()
 //     }
 //     digitalWrite(RXLED, LOW);
 // }
-
-      clearPitchBend();
-      ispressed = true;
-    }
-    else // this is continued touch
-    {
-      if (curVal != prevVal) // only do crap if we moved from last time through
-      {
-        prevVal = curVal;
-        diffVal = curVal - baseVal;        // figure out h0w far we strayed from start point (+ = up, - = down) -1023 to 1023
-        tempFloat = scaleFactor * diffVal; // scale it to -2000h to +2000h using a float
-        newPWValue = midPoint + tempFloat; // this should add in midpoint bias to get 0 to 0x4000h
-        newPWHex = int(newPWValue);        // convert that back to an unsigned INT
-        sendPitchBend(newPWHex);           // send it
-      }
-    }
-  }
-  else // the ribbon is not pressed this loop
-  {
-    if (holding || timer > 100)
-    {
-      if (!holding)
-      {
-        //preserve the bend position
-        holdPWValue = newPWHex;
-        holding = true;
-        honsc(true);
-      }
-      //reset first byte
-      Serial.write(0xE0);
-      sendPitchBend(holdPWValue);
-
-      fadeOut();
-
-      if (vol == 0 || holdTicks > 2000)
-      {
-        shouldRelease = true;
-        clearPitchBend();
-      }
-      // don't reset until I say
-      ispressed = false;
-    }
-
-    if (ispressed) // if it was pressed last time through, reset pitch bend
-    {
-      if (!holding)
-      {
-        //preserve the bend position
-        holdPWValue = newPWHex;
-        holding = true;
-        honsc(true);
-      }
-      //reset first byte
-      Serial.write(0xE0);
-      sendPitchBend(holdPWValue);
-
-      if (holdTicks > 2000)
-      {
-        shouldRelease = true;
-        clearPitchBend();
-      }
-      // don't reset until I say
-      ispressed = false;
-    }
-
-    if (ispressed) // if it was pressed last time through, reset pitch bend
-    {
-      clearPitchBend();
-    }    
-  }
-  delay(20);
-}
-
-void clearPitchBend()
-{
-  if (shouldRelease)
-  {
-    holdTicks = 0;
-    holdPWValue = 0;
-    holding = false;
-    shouldRelease = false;
-
-    honsc(false);
-  }
-
-  // 2000h is zero point = 0010 0000 0000 0000 but sent as a 14 bit value split into 2 x 7 =  --> 1000000 0000000 (0x20h, 0x00h)
-  Serial.write(0xE0); // 1110 0000
-  Serial.write(0x00); // LSB clear
-  Serial.write(0x40); // MSB = 1/2 way of 7 bits
-  timer = 0;
-  ispressed = false; // always reset flag meh can be moved here
-
-  //splitting this up avoids hearing the ribbon snap back.
-  if (shouldRelease)
-  {
-    shouldRelease = false;
-    //turn it back up
-    resetVolume();
-  }
-}
-
-// this uses continuous status (no leading byte required)
-void sendPitchBend(unsigned int pwAmount)
-{
-  unsigned char low = pwAmount & 0x7F;         // Low 7 bits
-  unsigned char high = (pwAmount >> 7) & 0x7F; // High 7 bits
-  Serial.write(low);                           // LSB
-  Serial.write(high);                          // MSB
-  timer++;
-
-  if (holding)
-  {
-    holdTicks++;
-  }
-}
-
-void honsc(bool on)
-{
-  int val = on ? 127 : 40;
-  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
-}
-
-void fadeOut()
-{
-  if (holdTicks % 5 == 0 || vol < 5)
-  {
-    MIDI.sendControlChange(7, vol--, 1);
-  }
-}
-
-void resetVolume()
-{
-
-  MIDI.sendControlChange(voiceAReleaseCC, 0, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, 0, 1); //we dont want the ribbon snap back ringing due to sustain is the pedal is pressed
-  // only if we faded out
-  if (vol == 0)
-  {
-    MIDI.sendControlChange(64, 0, 1);
-  }
-  vol = 110;
-  delay(100);
-  MIDI.sendControlChange(7, vol, 1);
-  honsc(false);
-
-  if (holding)
-  {
-    holdTicks++;
-  }
-}
-void honsc(bool on)
-{
-  int val = on ? 127 : 40;
-  MIDI.sendControlChange(voiceAReleaseCC, val, 1);
-  MIDI.sendControlChange(voiceBReleaseCC, val, 1);
-}
